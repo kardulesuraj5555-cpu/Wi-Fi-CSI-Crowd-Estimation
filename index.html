@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wi-Fi CSI Crowd Density Simulator</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a2e;
+      --panel2: #17223a;
+      --text: #edf3ff;
+      --muted: #9eacc7;
+      --line: rgba(160, 180, 220, .16);
+      --cyan: #45d6e8;
+      --green: #45d49a;
+      --yellow: #ffcc66;
+      --red: #ff6b7a;
+      --purple: #a994ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; color: var(--text); background:
+        radial-gradient(circle at 15% 0%, rgba(69,214,232,.10), transparent 28rem),
+        radial-gradient(circle at 100% 10%, rgba(169,148,255,.10), transparent 26rem), var(--bg);
+      font: 15px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .wrap { max-width: 1240px; margin: auto; padding: 28px 20px 40px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:24px; }
+    .brand { display:flex; align-items:center; gap:13px; }
+    .logo { width:48px; height:48px; display:grid; place-items:center; border-radius:15px; color:#07121d; background:linear-gradient(135deg,var(--cyan),#7af0ca); font-size:24px; font-weight:900; box-shadow:0 8px 30px #45d6e833; }
+    h1 { font-size:clamp(21px,3vw,30px); margin:0; letter-spacing:-.7px; }
+    .subtitle { color:var(--muted); margin-top:4px; font-size:13px; }
+    .live { display:flex; align-items:center; gap:8px; color:#aaf2d2; background:#14352e; border:1px solid #28634e; border-radius:999px; padding:8px 13px; font-size:12px; font-weight:700; letter-spacing:.5px; }
+    .dot { width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px #45d49a20; }
+    .notice { padding:12px 15px; border:1px solid #7a6534; background:#332b1c; color:#ffe5a5; border-radius:12px; margin-bottom:18px; font-size:13px; }
+    .stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:18px; }
+    .card { background:linear-gradient(145deg,rgba(23,34,58,.96),rgba(16,24,42,.96)); border:1px solid var(--line); border-radius:17px; padding:18px; box-shadow:0 12px 35px #00000014; min-width:0; }
+    .stat-label { color:var(--muted); font-size:12px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .stat-value { font-size:clamp(25px,3vw,34px); font-weight:750; letter-spacing:-1px; margin-top:8px; }
+    .stat-foot { font-size:12px; color:var(--muted); margin-top:4px; }
+    .accent { color:var(--cyan); } .green { color:var(--green); } .yellow { color:var(--yellow); }
+    .layout { display:grid; grid-template-columns:minmax(0,1.65fr) minmax(280px,1fr); gap:18px; }
+    .panel-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:14px; }
+    h2 { margin:0; font-size:16px; letter-spacing:-.2px; }
+    .hint { color:var(--muted); font-size:12px; margin-top:4px; }
+    .pill { padding:5px 9px; border:1px solid var(--line); border-radius:8px; color:var(--muted); font-size:11px; white-space:nowrap; }
+    canvas { display:block; width:100%; height:210px; background:#0b1325; border:1px solid #293550; border-radius:12px; }
+    .legend { display:flex; gap:16px; flex-wrap:wrap; color:var(--muted); font-size:11px; margin:10px 2px 0; }
+    .key { display:inline-block; width:8px;height:8px;border-radius:50%;margin-right:6px; }
+    .controls { display:grid; gap:17px; }
+    .control-label { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:13px; margin-bottom:9px; }
+    .control-label strong { color:var(--cyan); font-size:14px; }
+    input[type="range"] { width:100%; accent-color:var(--cyan); cursor:pointer; }
+    .range-ends { display:flex; justify-content:space-between; color:var(--muted); font-size:11px; margin-top:3px; }
+    select, button { font:inherit; }
+    select { width:100%; background:#0c1528; border:1px solid #2d3a55; border-radius:10px; padding:10px 11px; color:var(--text); outline:none; }
+    .buttons { display:flex; gap:10px; margin-top:2px; }
+    button { border:0; cursor:pointer; border-radius:10px; padding:11px 14px; font-weight:700; transition:transform .15s,filter .15s; }
+    button:hover { filter:brightness(1.08); transform:translateY(-1px); }
+    .primary { flex:1; color:#07151e; background:linear-gradient(100deg,var(--cyan),#79f0c8); }
+    .secondary { color:var(--text); background:#26334d; border:1px solid #3a4865; }
+    .density-box { display:flex; align-items:center; gap:15px; padding:14px; border:1px solid var(--line); background:#0d1629; border-radius:12px; margin-top:16px; }
+    .density-icon { display:grid;place-items:center;width:48px;height:48px;border-radius:13px;background:#45d49a20;font-size:23px; }
+    .density-title { font-size:19px;font-weight:750; }
+    .density-desc { color:var(--muted);font-size:12px; }
+    .bar { height:7px;background:#26324a;border-radius:20px;overflow:hidden;margin-top:12px; }
+    .bar > div { height:100%;width:0;background:linear-gradient(90deg,var(--green),var(--yellow),var(--red));border-radius:20px;transition:width .25s; }
+    .bottom { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:18px; }
+    .meter-row { display:flex;align-items:center;gap:10px;margin-top:13px; }
+    .meter-label { width:112px;color:var(--muted);font-size:12px; }
+    .meter-track { flex:1;height:9px;background:#26324a;border-radius:20px;overflow:hidden; }
+    .meter-fill { height:100%;width:0;border-radius:20px;background:var(--purple);transition:width .25s; }
+    .meter-num { width:42px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums; }
+    .flow-track { position:relative;height:58px;border-radius:10px;background:repeating-linear-gradient(90deg,#14223a 0 42px,#1a2a45 42px 44px);overflow:hidden;margin-top:13px; }
+    .person { position:absolute;top:17px;font-size:22px;filter:drop-shadow(0 0 5px #45d6e866); }
+    .privacy-list { list-style:none;padding:0;margin:10px 0 0;display:grid;gap:8px;color:var(--muted);font-size:12px; }
+    .privacy-list li::before { content:"✓"; color:var(--green);font-weight:900;margin-right:8px; }
+    footer { text-align:center;color:#73819c;font-size:11px;margin-top:24px; }
+    @media (max-width:850px) { .stats{grid-template-columns:repeat(2,minmax(0,1fr));}.layout{grid-template-columns:1fr;} }
+    @media (max-width:540px) { .wrap{padding:18px 12px 28px}.stats{gap:9px}.card{padding:14px}.bottom{grid-template-columns:1fr}.live{font-size:10px} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo">⌁</div>
+        <div>
+          <h1>Wi-Fi CSI Crowd Estimation</h1>
+          <div class="subtitle">Privacy-preserving crowd density &amp; movement-flow simulator</div>
+        </div>
+      </div>
+      <div class="live"><span class="dot" id="liveDot"></span><span id="liveText">SIMULATION RUNNING</span></div>
+    </header>
+
+    <div class="notice"><strong>Demo mode:</strong> This page generates synthetic CSI-like amplitude and phase signals. It does not connect to Wi-Fi hardware or measure real people. Use it to demonstrate the project concept.</div>
+
+    <section class="stats">
+      <div class="card">
+        <div class="stat-label">ESTIMATED CROWD COUNT <span>◉</span></div>
+        <div class="stat-value accent" id="countValue">18</div>
+        <div class="stat-foot">Simulated estimate · people</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">DENSITY LEVEL <span>▦</span></div>
+        <div class="stat-value green" id="densityValue">Medium</div>
+        <div class="stat-foot" id="densityFoot">Moderate occupancy</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">MOVEMENT FLOW <span>↗</span></div>
+        <div class="stat-value" id="flowValue">42<span style="font-size:15px;color:var(--muted)"> /100</span></div>
+        <div class="stat-foot">Synthetic movement index</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">SIGNAL VARIATION <span>∿</span></div>
+        <div class="stat-value yellow" id="signalValue">0.46</div>
+        <div class="stat-foot">Normalized CSI variation</div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="card">
+        <div class="panel-head">
+          <div><h2>CSI Signal Monitor</h2><div class="hint">Synthetic amplitude &amp; phase changes over time</div></div>
+          <span class="pill">30 subcarriers · simulated</span>
+        </div>
+        <canvas id="signalCanvas" width="900" height="300" aria-label="Simulated CSI signal graph"></canvas>
+        <div class="legend">
+          <span><i class="key" style="background:var(--cyan)"></i>Amplitude</span>
+          <span><i class="key" style="background:var(--purple)"></i>Phase variation</span>
+          <span>Signal fluctuations increase with simulated crowd density</span>
+        </div>
+        <div class="density-box">
+          <div class="density-icon" id="densityIcon">♟</div>
+          <div style="flex:1;min-width:0">
+            <div class="density-title" id="statusTitle">Moderate crowd detected</div>
+            <div class="density-desc" id="statusDesc">Synthetic signal pattern suggests a medium-density area.</div>
+            <div class="bar"><div id="densityBar"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="panel-head">
+          <div><h2>Simulation Controls</h2><div class="hint">Change inputs to see signal response</div></div>
+          <span class="pill">INTERACTIVE</span>
+        </div>
+        <div class="controls">
+          <div>
+            <div class="control-label"><label for="crowdSlider">Simulated people in area</label><strong id="crowdNum">18 people</strong></div>
+            <input id="crowdSlider" type="range" min="0" max="40" value="18" />
+            <div class="range-ends"><span>0 · Empty</span><span>40 · Crowded</span></div>
+          </div>
+          <div>
+            <div class="control-label"><label for="motionSlider">Movement activity</label><strong id="motionNum">42%</strong></div>
+            <input id="motionSlider" type="range" min="0" max="100" value="42" />
+            <div class="range-ends"><span>Stationary</span><span>Fast movement</span></div>
+          </div>
+          <div>
+            <div class="control-label"><label for="noiseSelect">Simulated signal environment</label></div>
+            <select id="noiseSelect">
+              <option value="0.7">Stable indoor environment</option>
+              <option value="1">Typical public space</option>
+              <option value="1.35">High interference / multipath</option>
+            </select>
+          </div>
+          <div class="buttons">
+            <button class="primary" id="toggleBtn">Ⅱ Pause simulation</button>
+            <button class="secondary" id="randomBtn">↻ Randomize</button>
+          </div>
+        </div>
+        <div style="margin-top:20px;border-top:1px solid var(--line);padding-top:16px">
+          <h2>Signal feature indicators</h2>
+          <div class="meter-row"><span class="meter-label">Amplitude spread</span><div class="meter-track"><div class="meter-fill" id="ampMeter"></div></div><span class="meter-num" id="ampNum">46%</span></div>
+          <div class="meter-row"><span class="meter-label">Phase variation</span><div class="meter-track"><div class="meter-fill" id="phaseMeter"></div></div><span class="meter-num" id="phaseNum">38%</span></div>
+          <div class="meter-row"><span class="meter-label">Motion activity</span><div class="meter-track"><div class="meter-fill" id="motionMeter"></div></div><span class="meter-num" id="motionMeterNum">42%</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bottom">
+      <div class="card">
+        <div class="panel-head"><div><h2>Movement Flow Preview</h2><div class="hint">Illustrative flow animation; not a real tracking map</div></div><span class="pill">AGGREGATE ONLY</span></div>
+        <div class="flow-track" id="flowTrack"></div>
+        <div class="hint" style="margin-top:10px" id="flowText">Moderate movement through the monitored zone.</div>
+      </div>
+      <div class="card">
+        <div class="panel-head"><div><h2>Privacy by Design</h2><div class="hint">Designed around aggregate sensing</div></div><span class="pill">NO CAMERA</span></div>
+        <ul class="privacy-list">
+          <li>No camera feed or image capture is used.</li>
+          <li>No face recognition or personal identity is collected.</li>
+          <li>Only simulated aggregate density and flow are displayed.</li>
+          <li>Real deployment needs compatible CSI-capable Wi-Fi hardware.</li>
+        </ul>
+      </div>
+    </section>
+    <footer>Student project prototype · Wi-Fi CSI-Based Privacy-Preserving Crowd Density Estimation · Synthetic data only</footer>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const canvas = $("signalCanvas");
+    const ctx = canvas.getContext("2d");
+    const crowdSlider = $("crowdSlider");
+    const motionSlider = $("motionSlider");
+    const noiseSelect = $("noiseSelect");
+    let running = true;
+    let tick = 0;
+    let ampHistory = Array.from({length: 100}, () => 0.5);
+    let phaseHistory = Array.from({length: 100}, () => 0.5);
+    let lastRender = 0;
+
+    function densityFor(count) {
+      if (count <= 8) return {name:"Low", color:"#45d49a", foot:"Low occupancy", title:"Low crowd density", desc:"Synthetic signal pattern suggests a low-density area.", icon:"♙"};
+      if (count <= 20) return {name:"Medium", color:"#ffcc66", foot:"Moderate occupancy", title:"Moderate crowd detected", desc:"Synthetic signal pattern suggests a medium-density area.", icon:"♟"};
+      return {name:"High", color:"#ff6b7a", foot:"High occupancy", title:"High crowd density", desc:"Higher simulated signal complexity; review crowd-management conditions.", icon:"♟♟"};
+    }
+
+    function updateUI() {
+      const count = Number(crowdSlider.value);
+      const motion = Number(motionSlider.value);
+      const noise = Number(noiseSelect.value);
+      const d = densityFor(count);
+      const variation = Math.min(1, (0.08 + count / 55 + motion / 260) * noise);
+      const flow = Math.round(motion * (0.35 + count / 62));
+      $("countValue").textContent = count;
+      $("densityValue").textContent = d.name;
+      $("densityValue").style.color = d.color;
+      $("densityFoot").textContent = d.foot;
+      $("flowValue").innerHTML = `${Math.min(100,flow)}<span style="font-size:15px;color:var(--muted)"> /100</span>`;
+      $("signalValue").textContent = variation.toFixed(2);
+      $("crowdNum").textContent = `${count} ${count === 1 ? "person" : "people"}`;
+      $("motionNum").textContent = `${motion}%`;
+      $("densityIcon").textContent = d.icon;
+      $("densityIcon").style.background = d.color + "20";
+      $("statusTitle").textContent = d.title;
+      $("statusTitle").style.color = d.color;
+      $("statusDesc").textContent = d.desc;
+      $("densityBar").style.width = `${count / 40 * 100}%`;
+      $("densityBar").style.background = d.color;
+      const amp = Math.min(100, Math.round(variation * 70 + motion * .18));
+      const phase = Math.min(100, Math.round(variation * 85));
+      $("ampMeter").style.width = amp + "%"; $("ampNum").textContent = amp + "%";
+      $("phaseMeter").style.width = phase + "%"; $("phaseNum").textContent = phase + "%";
+      $("motionMeter").style.width = motion + "%"; $("motionMeterNum").textContent = motion + "%";
+      $("flowText").textContent = motion < 25 ? "Low movement: mostly stationary simulated crowd." : motion < 65 ? "Moderate movement through the monitored zone." : "High movement: simulated flow activity is elevated.";
+      renderFlow(count, motion);
+    }
+
+    function renderFlow(count, motion) {
+      const track = $("flowTrack");
+      track.innerHTML = "";
+      const peopleToDraw = Math.max(1, Math.min(12, Math.round(count / 3.5)));
+      for (let i = 0; i < peopleToDraw; i++) {
+        const p = document.createElement("span");
+        p.className = "person";
+        p.textContent = "♟";
+        p.style.left = `${(i * 91 / peopleToDraw) + 2}%`;
+        p.style.opacity = `${0.35 + Math.min(0.65, motion / 140)}`;
+        p.style.color = i % 3 === 0 ? "var(--purple)" : "var(--cyan)";
+        p.style.transform = `translateX(${Math.sin(tick / 5 + i) * motion / 12}px)`;
+        track.appendChild(p);
+      }
+    }
+
+    function drawGrid(w, h) {
+      ctx.strokeStyle = "rgba(150,175,220,.11)";
+      ctx.lineWidth = 1;
+      for (let y = 0; y <= h; y += 50) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      }
+      for (let x = 0; x <= w; x += 75) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      }
+    }
+
+    function drawLine(values, color, height, offset) {
+      const w = canvas.width, h = canvas.height;
+      ctx.beginPath();
+      values.forEach((v, i) => {
+        const x = i / (values.length - 1) * w;
+        const y = offset + v * height;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 7;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    function renderChart() {
+      const w = canvas.width, h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+      drawGrid(w, h);
+      const count = Number(crowdSlider.value);
+      const motion = Number(motionSlider.value) / 100;
+      const noise = Number(noiseSelect.value);
+      const strength = Math.min(1, (0.08 + count / 48 + motion * .35) * noise);
+      for (let i = 0; i < 5; i++) {
+        const a = 0.5 + Math.sin(tick * .045 + i * .5) * .09
+          + (Math.random() - .5) * strength * .52;
+        const p = 0.5 + Math.sin(tick * .04 + i * .7 + 1.3) * .1
+          + (Math.random() - .5) * strength * .68;
+        ampHistory.push(Math.max(.04, Math.min(.96, a)));
+        phaseHistory.push(Math.max(.04, Math.min(.96, p)));
+      }
+      ampHistory = ampHistory.slice(-100);
+      phaseHistory = phaseHistory.slice(-100);
+      drawLine(ampHistory, "#45d6e8", h * .72, h * .06);
+      drawLine(phaseHistory, "#a994ff", h * .72, h * .12);
+      ctx.fillStyle = "#9eacc7";
+      ctx.font = "15px system-ui";
+      ctx.fillText("CSI amplitude / phase (synthetic)", 18, 25);
+    }
+
+    function loop(now) {
+      if (running && now - lastRender > 90) {
+        tick++;
+        renderChart();
+        renderFlow(Number(crowdSlider.value), Number(motionSlider.value));
+        lastRender = now;
+      }
+      requestAnimationFrame(loop);
+    }
+
+    crowdSlider.addEventListener("input", () => { updateUI(); renderChart(); });
+    motionSlider.addEventListener("input", () => { updateUI(); renderChart(); });
+    noiseSelect.addEventListener("change", () => { updateUI(); renderChart(); });
+    $("toggleBtn").addEventListener("click", () => {
+      running = !running;
+      $("toggleBtn").textContent = running ? "Ⅱ Pause simulation" : "▶ Resume simulation";
+      $("liveText").textContent = running ? "SIMULATION RUNNING" : "SIMULATION PAUSED";
+      $("liveDot").style.background = running ? "var(--green)" : "var(--yellow)";
+    });
+    $("randomBtn").addEventListener("click", () => {
+      crowdSlider.value = Math.floor(Math.random() * 41);
+      motionSlider.value = Math.floor(Math.random() * 101);
+      noiseSelect.selectedIndex = Math.floor(Math.random() * noiseSelect.options.length);
+      updateUI(); renderChart();
+    });
+
+    updateUI();
+    renderChart();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
